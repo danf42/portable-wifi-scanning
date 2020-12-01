@@ -1,0 +1,5 @@
+# Directories to ignore
+*_prod/
+
+# Files to ingore
+*_prod.sh
