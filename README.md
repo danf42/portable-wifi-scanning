@@ -19,7 +19,7 @@ The project uses a GPS device, two ALFA AC1200 wifi adapters for wifi scanning, 
 Termux is installed on our tablet with a custom touch keyboard.  The F1-F5 keys are configured to cycle through the tmux windows, detach from the tmux session, and Ctrl-C out of programs.  
 
 # Requirements
-## Hardawre 
+## Hardware 
 
 ![Hardware](images/parts.jpg)
 
@@ -113,7 +113,7 @@ This option allows you to log into the Raspberry Pi and select the type of colle
  *Note: the scripts cannot be run at the same time.  You must stop the first script before starting the second script*
 
  # Enhancements 
- 1. Make a permant storage area for the components to sit ontop of the truck body.  
+ 1. Make a permanent storage area for the components to sit ontop of the truck body.  
 
       ![Remote Controlled Truck](images/rc_truck.jpg)
 
