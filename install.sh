@@ -5,7 +5,7 @@
 # -------------------------------------------------------------------------------------------------
 # This script will install and configure the necessary packagers for wifi scanning service
 # 
-# PLEASE Review the variables set in this script to ensure they match your system and hardware
+# PLEASE Review the variables under config/variables.sh to ensure they match your system and hardware
 #
 # PLEASE review the files in the config directory to ensure they are configured correctly
 #
@@ -23,35 +23,6 @@ prompt_confirm() {
     esac 
 }
 
-# -------------------------------------------------------------------------------------------------
-# Network Configuration: MAC addresses and Predictiable names
-#
-# Predictible names will be used for the USB Wifi Cards (ID_NET_NAME_MAC)
-#  wl = wlan
-#  x  = MAC
-#  aabbccddffgg = MAC address of device
-# -------------------------------------------------------------------------------------------------
-
-# TP-Link USB WiFi Adapter for PC(TL-WN725N)
-WLAN_INTERFACE_TPLINK="CHANGE_ME"
-
-# Alfa AC1200 USB Wireless cards
-WLAN_INTERFACE_AC1200_1="CHANGE_ME"
-WLAN_INTERFACE_AC1200_2="CHANGE_ME"
-
-# MAC Address of built-in Ethernet interface
-MAC_ETH0="CHANGE_ME"
-
-# MAC Address of built-in WiFi interface
-MAC_WLAN0="CHANGE_ME"
-
-# -------------------------------------------------------------------------------------------------
-# Access Point ESSID and Password
-# -------------------------------------------------------------------------------------------------
-AP_ESSID="CHANGE_ME"
-AP_WPA_PASSPHRASE="CHANGE_ME"
-
-# -------------------------------------------------------------------------------------------------
 # Save starting directory
 SAVED_DIR=$(pwd)
 
@@ -61,8 +32,8 @@ CONFIG_DIR="${SAVED_DIR}/config"
 # script dir
 SCRIPT_DIR="${SAVED_DIR}/scripts"
 
-# Target directory to install the scanning scripts
-TARGET_DIR="/root/wifi_scanning_tools"
+# Source configuration file 
+source ${CONFIG_DIR}/variables.sh
 
 # set terminal output colors
 RED=`tput setaf 1`
@@ -394,6 +365,15 @@ chmod 755 ${TARGET_DIR}/run_airodump.sh
 
 cp ${SCRIPT_DIR}/run_hcxdump.sh ${TARGET_DIR}/run_hcxdump.sh
 chmod 755 ${TARGET_DIR}/run_hcxdump.sh
+
+cp ${CONFIG_DIR}/variables.sh ${TARGET_DIR}/variables.sh
+chmod 755 ${TARGET_DIR}/variables.sh
+
+# Add the full path to source the variables.sh file in the scripts
+VAR_FILE_PATH=${TARGET_DIR}/variables.sh
+
+sed -i "s|VARIABLE_PATH|${VAR_FILE_PATH}|" ${TARGET_DIR}/run_airodump.sh
+sed -i "s|VARIABLE_PATH|${VAR_FILE_PATH}|" ${TARGET_DIR}/run_hcxdump.sh
 
 # -------------------------------------------------------------------------------------------------
 # Install wifi_scanning service

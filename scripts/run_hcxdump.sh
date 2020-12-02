@@ -7,11 +7,8 @@ if [[ $# -ne 1 ]]; then
     exit 1
 fi
 
-# Define interfaces for USB WIFI Adapters
-WLAN_INTERFACE_TPLINK="CHANGE_ME"
-WLAN_INTERFACE_AC1200_1="CHANGE_ME"
-WLAN_INTERFACE_AC1200_2="CHANGE_ME"
-WLAN_INTERFACE_AC1200=""
+# Source configuration file 
+source VARIABLE_PATH
 
 # set terminal output colors
 RED=`tput setaf 1`

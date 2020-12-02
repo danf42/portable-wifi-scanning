@@ -58,7 +58,7 @@ If installed as a service, all USB devices need to be plugged in prior to poweri
 3. Boot the Raspberry pi and log into Kali using the default credentials.  
    *Note: The initial boot will take longer because of the resize filesystem operation.*
 4. Download this repository
-5. The following variables need to be changed in the `install.sh` script (Search for `CHANGE_ME`)
+5. The following variables need to be changed in the `config/variables.sh` script (Search for `CHANGE_ME`)
    - `WLAN_INTERFACE_TPLINK`: Predictable name for TP-LINK wifi adapter (*wlxaabbccddffgg*)
    - `WLAN_INTERFACE_AC1200_1`: Predictable name for TP-LINK wifi adapter (*wlxaabbccddffgg*)
    - `WLAN_INTERFACE_AC1200_2`: Predictable name for TP-LINK wifi adapter (*wlxaabbccddffgg*)
@@ -66,19 +66,15 @@ If installed as a service, all USB devices need to be plugged in prior to poweri
    - `MAC_WLAN0`: MAC Address for wlan0 (*AA:BB:CC:DD:EE:FF:GG*)
    - `AP_ESSID`: Access Point name
    - `AP_WPA_PASSPHRASE`: Access Point phassphrase
-6. The following variables need to be changed in the `scripts\run_airodump.sh` and `scripts\run_hcxdump.sh` (Search for `CHANGE_ME`)
-   - `WLAN_INTERFACE_TPLINK`: Predictable name for TP-LINK wifi adapter (*wlxaabbccddffgg*)
-   - `WLAN_INTERFACE_AC1200_1`: Predictable name for TP-LINK wifi adapter (*wlxaabbccddffgg*)
-   - `WLAN_INTERFACE_AC1200_2`: Predictable name for TP-LINK wifi adapter (*wlxaabbccddffgg*)
-7. The following files need to be updated under the `config` directory
+6. The following files need to be updated under the `config` directory
    - hostapd.accept: Allowed MAC addressed (one MAC address per line)
    - wpa_supplicant.conf: Wireless networks to connect to
 
-8. Run the installer as root: `sudo ./install.sh`
+7. Run the installer as root: `sudo ./install.sh`
 
    To install as a service: `sudo ./install.sh --service`
 
-9. When the install is complete, press `y` to shutdown the Pi
+8. When the install is complete, press `y` to shutdown the Pi
 
 At this point you can plug in the USB devices and power on the device.  If successful, you should see the access point in the wireless network list on your mobile device.  
 
@@ -117,8 +113,7 @@ This option allows you to log into the Raspberry Pi and select the type of colle
  *Note: the scripts cannot be run at the same time.  You must stop the first script before starting the second script*
 
  # Enhancements 
- 1. Place all the variables in a seperate cofiguration file that `install.sh`, `run_airodump.sh`, and `run_hcxdump.sh` source
- 2. Make a permant storage area for the components to sit ontop of the truck body.  
+ 1. Make a permant storage area for the components to sit ontop of the truck body.  
 
       ![Remote Controlled Truck](images/rc_truck.jpg)
 
