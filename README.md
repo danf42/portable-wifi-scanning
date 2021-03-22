@@ -9,6 +9,8 @@ This project was developed to facilite passive wifi data collection activities. 
 
 The project uses a GPS device, two ALFA AC1200 wifi adapters for wifi scanning, and a TP-LINK USB wifi adapter as an access point.  
 
+NTP is configured to use the GPS as a time source.  This allows the device to keep accurate time when storing first and last seen times of access points and their clients.  
+
 [airodump-ng](https://www.aircrack-ng.org/doku.php?id=airodump-ng) is the tool of choice to conduct passive wifi scanning.  One ALFA card is configured to channel hop on the 2.4GHz spectrum and the other channel hops on the 5.0GHz spectrum.  Each airodump-ng instance is also configured to use the GPS device.    gpsmon and airodump-ng are started in a tmux session so that we can attach to the session from our mobile device. tmux allows to attach and detach as needed, while the processes continue run.  The commands in the script to run airodump-ng are:
  - 5.0GHz: `airodump-ng --gpsd -w <filename prefix> --band a --manufacture <ALFA AC1200 device>`
  - 2.4GHz: `airodump-ng --gpsd -w <filename prefix> --band bg --manufacture <ALFA AC1200 device>`

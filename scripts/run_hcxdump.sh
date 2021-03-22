@@ -84,6 +84,29 @@ get_alfa1200_card(){
 }
 
 # -------------------------------------------------------------------------------------------------
+# Wait for time to be synced
+# -------------------------------------------------------------------------------------------------
+time_sync(){
+
+    i=0
+
+    while [ $i -lt 5 ]; do
+        status=$(ntpq -p | grep -c "*")
+
+        if [ $status -eq 1 ]; then
+            echo "Time is synced"
+            ntpq -p
+            echo
+            break
+        fi
+
+        i=$[$i+1]
+        sleep 5
+    done
+
+}
+
+# -------------------------------------------------------------------------------------------------
 # Start tmux session and hcxdump
 # -------------------------------------------------------------------------------------------------
 start(){
@@ -92,10 +115,9 @@ start(){
 
     verify_usb_devices || exit 1
 
-    echo "${YELLOW}[*] Attempt to sync time ${RESET}"
-    ntpdate pool.ntp.org
+    echo "${YELLOW}[*] Sleep and then check time ${RESET}"
+    time_sync
     timedatectl
-    sleep 5
 
     # Get the date
     now=`date +"%Y-%m-%d"`

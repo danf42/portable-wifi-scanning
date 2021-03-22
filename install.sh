@@ -124,20 +124,48 @@ dpkg-reconfigure openssh-server
 systemctl restart ssh.service 
 
 # -------------------------------------------------------------------------------------------------
+# Update parameters for gpsd
+# -------------------------------------------------------------------------------------------------
+echo "${YELLOW}[~] Update parameters for gpsd...${RESET}"
+
+cat > /etc/default/gpsd << EOF
+# Devices gpsd should collect to at boot time.
+# They need to be read/writeable, either by user gpsd or the group dialout.
+DEVICES="/dev/ttyUSB0"
+
+# Other options you want to pass to gpsd
+GPSD_OPTIONS="-n"
+
+# Automatically hot add/remove USB GPS devices via gpsdctl
+USBAUTO="true"
+EOF
+
+# -------------------------------------------------------------------------------------------------
 # Update date and time
 # -------------------------------------------------------------------------------------------------
 echo "${YELLOW}[~] Update date and time...${RESET}"
-ntpdate pool.ntp.org
 
-cp ${CONFIG_DIR}/ntpdate.service /etc/systemd/system/ntpdate.service
+cat > /etc/ntp.conf << EOF
+pool us.pool.ntp.org iburst
 
-chown root:root /etc/systemd/system/ntpdate.service
-chmod 644 /etc/systemd/system/ntpdate.service
+driftfile /var/lib/ntp/ntp.drift
+logfile /var/log/ntp.log
 
-systemctl enable ntpdate
-systemctl start ntpdate
+restrict default kod nomodify notrap nopeer noquery
+restrict -6 default kod nomodify notrap nopeer noquery
+restrict 127.0.0.1 mask 255.255.255.0
+restrict -6 ::1
 
-timedatectl
+# GPS Serial data reference (NTP0)
+server 127.127.28.0
+fudge 127.127.28.0 flag1 1 refid GPS
+
+# GPS PPS reference (NTP1)
+server 127.127.28.1 prefer
+fudge 127.127.28.1 flag1 1 refid PPS
+EOF
+
+systemctl enable ntp.service
 
 # -------------------------------------------------------------------------------------------------
 # Install driver for TP-LINK USB Adapter
@@ -386,8 +414,7 @@ cat > /etc/systemd/system/wifi-scanning.service << EOF
 [Unit]
 Description=Wifi Monitoring via airodump-ng
 Requires=network-online.target
-Wants=ntpdate.service
-After=network.target network-online.target
+After=network.target network-online.target ntp.service gpsd.service
 
 [Service]
 Type=simple
