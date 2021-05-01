@@ -106,15 +106,7 @@ apt -y autoremove
 #   ntp ntpdate -- time sync
 #   gpsd gpsd-clients -- gps 
 #   libcurl4-openssl-dev libssl-dev zlib1g-dev -- hcxdump/hcxtools
-apt -y install kalipi-kernel-headers tmux git dkms hostapd dnsmasq ntp ntpdate gpsd gpsd-clients libcurl4-openssl-dev libssl-dev zlib1g-dev  
-
-# -------------------------------------------------------------------------------------------------
-# For Raspberry PI: uncomment disable_overscan so the screen fills monitor
-# -------------------------------------------------------------------------------------------------
-if [[ -f /boot/config.txt ]]; then 
-    echo "${YELLOW}[~] Uncomment disable_oversan...${RESET}"
-    sed -i 's/#disable_overscan=1/disable_overscan=1/g' /boot/config.txt
-fi
+apt -y install raspberrypi-kernel-headers tmux git dkms hostapd dnsmasq ntp ntpdate gpsd gpsd-clients libcurl4-openssl-dev libssl-dev zlib1g-dev  
 
 # -------------------------------------------------------------------------------------------------
 # Change SSH Host Keys
@@ -130,6 +122,14 @@ systemctl restart ssh.service
 echo "${YELLOW}[~] Disable Bluetooth...${RESET}"
 systemctl disable bluetooth.service
 systemctl stop bluetooth.service
+
+# -------------------------------------------------------------------------------------------------
+# Unblock Wireless
+# -------------------------------------------------------------------------------------------------
+echo "${YELLOW}[~] Unblock WiFi...${RESET}"
+id=$(rfkill list all | grep Wireless | cut -d":" -f1)
+rfkill unblock $id
+rfkill list all
 
 # -------------------------------------------------------------------------------------------------
 # Update parameters for gpsd
@@ -173,6 +173,7 @@ server 127.127.28.1 prefer
 fudge 127.127.28.1 flag1 1 refid PPS
 EOF
 
+# Enable NTP service
 systemctl enable ntp.service
 
 # Set timezone 
@@ -195,6 +196,8 @@ cd /opt/rtl8188eus
 
 sed -i 's/CONFIG_PLATFORM_I386_PC = y/CONFIG_PLATFORM_I386_PC = n/g' Makefile
 sed -i 's/CONFIG_PLATFORM_ARM64_RPI = n/CONFIG_PLATFORM_ARM64_RPI = y/g' Makefile
+sed -i 's/^dkms build/ARCH=arm dkms build/' dkms-install.sh
+sed -i 's/^MAKE="/MAKE="ARCH=arm\ /' dkms.conf
 
 ./dkms-install.sh
 
@@ -212,8 +215,40 @@ cd /opt/rtl8812au
 
 sed -i 's/CONFIG_PLATFORM_I386_PC = y/CONFIG_PLATFORM_I386_PC = n/g' Makefile
 sed -i 's/CONFIG_PLATFORM_ARM64_RPI = n/CONFIG_PLATFORM_ARM64_RPI = y/g' Makefile
+export ARCH=arm
+sed -i 's/^MAKE="/MAKE="ARCH=arm\ /' dkms.conf
 
 make dkms_install
+
+cd ${SAVED_DIR}
+
+# -------------------------------------------------------------------------------------------------
+# Install aircrack-ng
+# -------------------------------------------------------------------------------------------------
+echo "${YELLOW}[~] Install aircrack-ng...${RESET}"
+
+# Install build dependencies
+apt -y install build-essential autoconf automake libtool pkg-config libnl-3-dev libnl-genl-3-dev libssl-dev ethtool shtool rfkill zlib1g-dev libpcap-dev libsqlite3-dev libpcre3-dev libhwloc-dev libcmocka-dev hostapd wpasupplicant tcpdump screen iw usbutils
+
+cd /opt
+git clone https://github.com/aircrack-ng/aircrack-ng.git
+
+cd /opt/aircrack-ng
+
+# Generate configuration file
+autoreconf -i
+
+# Configure build information
+./configure
+
+# make and make install 
+make && make install
+
+# link libraries after install 
+ldconfig
+
+# update the list of OUIs to display manufactures
+airodump-ng-oui-update
 
 cd ${SAVED_DIR}
 
@@ -229,8 +264,13 @@ systemctl disable NetworkManager.service
 # -------------------------------------------------------------------------------------------------
 echo "${YELLOW}[~] Configure perdictable naming convention for network interfaces ${RESET}"
 
-cp /usr/lib/systemd/network/73-usb-net-by-mac.link /usr/lib/systemd/network/73-usb-net-by-mac.link.old
-cp /usr/lib/systemd/network/99-default.link /usr/lib/systemd/network/99-default.link.old
+if [ -f /usr/lib/systemd/network/73-usb-net-by-mac.link ]; then
+	mv /usr/lib/systemd/network/73-usb-net-by-mac.link /usr/lib/systemd/network/73-usb-net-by-mac.link.old
+fi
+
+if [ -f /usr/lib/systemd/network/99-default.link ]; then
+	mv /usr/lib/systemd/network/99-default.link /usr/lib/systemd/network/99-default.link.old
+fi
 
 if [ -f /etc/udev/rules.d/70-persistent-net.rules ]; then
 	mv /etc/udev/rules.d/70-persistent-net.rules /etc/udev/rules.d/70-persistent-net.rules.old
@@ -452,10 +492,19 @@ else
 fi
 
 # -------------------------------------------------------------------------------------------------
+# Add aliases to users profile
+# -------------------------------------------------------------------------------------------------
+echo "${YELLOW}[~] Adding aliases to $BASE_USER_NAME profile ...${RESET}"
+echo "alias astart='sudo /root/wifi_scanning_tools/run_airodump.sh start'" >> /home/$BASE_USER_NAME/.bashrc
+echo "alias astop='sudo /root/wifi_scanning_tools/run_airodump.sh stop'" >> /home/$BASE_USER_NAME/.bashrc
+echo "alias hstart='sudo /root/wifi_scanning_tools/run_hcxdump.sh start'" >> /home/$BASE_USER_NAME/.bashrc
+echo "alias hstop='sudo /root/wifi_scanning_tools/run_hcxdump.sh stop'" >> /home/$BASE_USER_NAME/.bashrc
+echo "alias shutdown='sudo shutdown -h 1'" >> /home/$BASE_USER_NAME/.bashrc
+echo "alias reboot='sudo shutdown -r now'" >> /home/$BASE_USER_NAME/.bashrc
+
+# -------------------------------------------------------------------------------------------------
 # Cleanup and reboot
 # -------------------------------------------------------------------------------------------------
-updatedb
-
 echo "${GREEN}[+] Installation is complete!  The system will shutdown now.${RESET}"
 
 prompt_confirm "Shutdown Now?" || exit 0

@@ -88,20 +88,29 @@ get_alfa1200_card(){
 # -------------------------------------------------------------------------------------------------
 time_sync(){
 
+    echo "${YELLOW}[*] Wait for time to sync ${RESET}"
+
     i=0
 
     while [ $i -lt 5 ]; do
         status=$(ntpq -p | grep -c "*")
 
         if [ $status -eq 1 ]; then
-            echo "Time is synced"
+            echo "${GREEN}[*] Time successfully synced!  ${RESET}"
+
             ntpq -p
             echo
             break
         fi
 
+        echo "${RED}[!] Time has not synced yet  ${RESET}"
+
+        # Force time to sync with GPS
+        ntpdate -s 127.127.28.0
+
         i=$[$i+1]
         sleep 5
+        
     done
 
 }
@@ -115,7 +124,7 @@ start(){
 
     verify_usb_devices || exit 1
 
-    echo "${YELLOW}[*] Sleep and then check time ${RESET}"
+    # Wait for time to be synced
     time_sync
     timedatectl
 
