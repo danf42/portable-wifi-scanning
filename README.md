@@ -20,6 +20,8 @@ NTP is configured to use the GPS as a time source.  This allows the device to ke
 
 Termux is installed on our tablet with a custom touch keyboard.  The F1-F5 keys are configured to cycle through the tmux windows, detach from the tmux session, and Ctrl-C out of programs.  
 
+The software can be install either on the Kali OS or the Raspbian OS.
+
 # Requirements
 ## Hardware 
 

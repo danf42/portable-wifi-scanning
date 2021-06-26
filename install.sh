@@ -452,6 +452,17 @@ else
 fi
 
 # -------------------------------------------------------------------------------------------------
+# Add aliases to users profile
+# -------------------------------------------------------------------------------------------------
+echo "${YELLOW}[~] Adding aliases to $BASE_USER_NAME profile ...${RESET}"
+echo "alias astart='sudo /root/wifi_scanning_tools/run_airodump.sh start'" >> /home/$BASE_USER_NAME/.bashrc
+echo "alias astop='sudo /root/wifi_scanning_tools/run_airodump.sh stop'" >> /home/$BASE_USER_NAME/.bashrc
+echo "alias hstart='sudo /root/wifi_scanning_tools/run_hcxdump.sh start'" >> /home/$BASE_USER_NAME/.bashrc
+echo "alias hstop='sudo /root/wifi_scanning_tools/run_hcxdump.sh stop'" >> /home/$BASE_USER_NAME/.bashrc
+echo "alias shutdown='sudo shutdown -h 1'" >> /home/$BASE_USER_NAME/.bashrc
+echo "alias reboot='sudo shutdown -r now'" >> /home/$BASE_USER_NAME/.bashrc
+
+# -------------------------------------------------------------------------------------------------
 # Cleanup and reboot
 # -------------------------------------------------------------------------------------------------
 updatedb
