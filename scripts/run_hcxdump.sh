@@ -174,6 +174,7 @@ start(){
 
         # name the first window and clear it
         tmux rename-window -t 0 'Main'
+        tmux send-keys -t 'Main' '/bin/bash' C-m
         tmux send-keys -t 'Main' 'clear' C-m
 
         # create window for airodump

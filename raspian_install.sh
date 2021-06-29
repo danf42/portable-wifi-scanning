@@ -23,6 +23,18 @@ prompt_confirm() {
     esac 
 }
 
+# -------------------------------------------------------------------------------------------------
+# Prompt user to install as a service
+# -------------------------------------------------------------------------------------------------
+prompt_service_install() {
+    read -p "${1:-Continue?} [y/n]:" -n1 -r
+    case $REPLY in
+      [yY]) echo ; return 0 ;;
+      [nN]) echo ; return 1 ;;
+      *) printf "Invalid input"
+    esac 
+}
+
 # Save starting directory
 SAVED_DIR=$(pwd)
 
@@ -90,6 +102,17 @@ echo
 echo "${YELLOW}[!] When install is finished you will be prompted to shutdown the device${RESET}"
 echo
 prompt_confirm "Ready to continue?" || exit 0
+
+# -------------------------------------------------------------------------------------------------
+# Verify service install status if not added as argument
+# -------------------------------------------------------------------------------------------------
+if [[ ${SERVICE_INSTALL} -eq 0 ]]; then 
+  prompt_service_install "Install as a service?" && SERVICE_INSTALL=1
+
+  if [[ ${SERVICE_INSTALL} -eq 1 ]]; then
+    echo "${YELLOW}[*] wifi-scanning service will be installed ${RESET}"
+  fi
+fi
 
 # -------------------------------------------------------------------------------------------------
 # Update and install OS packages
@@ -495,6 +518,7 @@ fi
 # Add aliases to users profile
 # -------------------------------------------------------------------------------------------------
 echo "${YELLOW}[~] Adding aliases to $BASE_USER_NAME profile ...${RESET}"
+echo "" >> /home/$BASE_USER_NAME/.bashrc
 echo "alias astart='sudo /root/wifi_scanning_tools/run_airodump.sh start'" >> /home/$BASE_USER_NAME/.bashrc
 echo "alias astop='sudo /root/wifi_scanning_tools/run_airodump.sh stop'" >> /home/$BASE_USER_NAME/.bashrc
 echo "alias hstart='sudo /root/wifi_scanning_tools/run_hcxdump.sh start'" >> /home/$BASE_USER_NAME/.bashrc
