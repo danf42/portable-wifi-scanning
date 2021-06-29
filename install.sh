@@ -61,7 +61,7 @@ SERVICE_INSTALL=0
 # Process commandline optional arguments
 if [[ "$1" = "-s" || "$1" = "--service" ]]; then 
   SERVICE_INSTALL=1
-  echo "${YELLOW}[*] wifi-scanning service will be installed ${RESET}"
+  echo "${BLUE}[*] wifi-scanning service will be installed ${RESET}"
 
 elif [[ "$1" = "-h" || "$1" = "--help" ]]; then  
   echo
@@ -110,7 +110,7 @@ if [[ ${SERVICE_INSTALL} -eq 0 ]]; then
   prompt_service_install "Install as a service?" && SERVICE_INSTALL=1
 
   if [[ ${SERVICE_INSTALL} -eq 1 ]]; then
-    echo "${YELLOW}[*] wifi-scanning service will be installed ${RESET}"
+    echo "${BLUE}[*] wifi-scanning service will be installed ${RESET}"
   fi
 fi
 
@@ -421,6 +421,7 @@ cd ${SAVED_DIR}
 # -------------------------------------------------------------------------------------------------
 # Aircrack-ng: update the list of OUIs to display manufactures
 # -------------------------------------------------------------------------------------------------
+echo "${YELLOW}[~] Update airodump list of OUIs...${RESET}"
 airodump-ng-oui-update
 
 # -------------------------------------------------------------------------------------------------
