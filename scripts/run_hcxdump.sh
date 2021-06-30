@@ -92,7 +92,7 @@ time_sync(){
 
     i=0
 
-    while [ $i -lt 5 ]; do
+    while [ $i -lt 10 ]; do
         status=$(ntpq -p | grep -c "*")
 
         if [ $status -eq 1 ]; then
@@ -106,7 +106,9 @@ time_sync(){
         echo "${RED}[!] Time has not synced yet  ${RESET}"
 
         # Force time to sync with GPS
-        ntpdate -s 127.127.28.0
+        systemctl stop ntp.service
+        ntpdate -s -v -t 5 127.127.28.0
+        systemctl start ntp.service
 
         i=$[$i+1]
         sleep 5
