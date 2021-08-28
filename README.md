@@ -128,6 +128,8 @@ Resources that helped to understand the different configuration options availabl
  - [systemd.unit — Unit configuration](https://www.freedesktop.org/software/systemd/man/systemd.unit.html)
  - [Termux Touch Keyboard](https://wiki.termux.com/wiki/Touch_Keyboard)
  - [Setting up a wireless LAN via the command line](https://www.raspberrypi.org/documentation/configuration/wireless/wireless-cli.md)
+ - [Set time from GPS dongle](http://blog.petrilopia.net/linux/raspberry-pi-set-time-gps-dongle/)
+ - [NTP error "...exceeds tolerance..."](https://access.redhat.com/solutions/35640)
 
 
 # Acknowledgements

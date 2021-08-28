@@ -177,8 +177,6 @@ EOF
 echo "${YELLOW}[~] Update date and time...${RESET}"
 
 cat > /etc/ntp.conf << EOF
-pool us.pool.ntp.org iburst
-
 driftfile /var/lib/ntp/ntp.drift
 logfile /var/log/ntp.log
 
@@ -490,8 +488,8 @@ if [[ ${SERVICE_INSTALL} -eq 1 ]]; then
 cat > /etc/systemd/system/wifi-scanning.service << EOF
 [Unit]
 Description=Wifi Monitoring via airodump-ng
-Requires=network-online.target
-After=network.target network-online.target ntp.service gpsd.service
+Requires=network-online.target gpsd.service
+After=network.target gpsd.service ntp.service
 
 [Service]
 Type=simple

@@ -74,30 +74,23 @@ time_sync(){
 
     echo "${YELLOW}[*] Wait for time to sync ${RESET}"
 
-    i=0
+    status=$(ntpq -p | grep -c "*")
 
-    while [ $i -lt 10 ]; do
-        status=$(ntpq -p | grep -c "*")
+    if [ $status -eq 1 ]; then
+        echo "${GREEN}[+] Time successfully synced!  ${RESET}"
 
-        if [ $status -eq 1 ]; then
-            echo "${GREEN}[*] Time successfully synced!  ${RESET}"
+        ntpq -p
 
-            ntpq -p
-            echo
-            break
-        fi
-
-        echo "${RED}[!] Time has not synced yet  ${RESET}"
-
-        # Force time to sync with GPS
+    else
+        echo "${RED}[!] Time is not synced, force sync now... ${RESET}"
         systemctl stop ntp.service
-        ntpdate -s -v -t 5 127.127.28.0
-        systemctl start ntp.service
-
-        i=$[$i+1]
         sleep 5
-        
-    done
+        ntpd -qg
+        sleep 5
+        systemctl start ntp.service
+        sleep 5
+        ntpq -p
+    fi
 
 }
 
@@ -215,9 +208,19 @@ stop(){
     sleep 5
 
     # put the ALFA cards into managed mode
-    echo "${YELLOW}[~] Start ${WLAN_INTERFACE_AC1200_2} and ${WLAN_INTERFACE_AC1200_1} in managed mode ${RESET}"
-    airmon-ng stop ${WLAN_INTERFACE_AC1200_2}
-    airmon-ng stop ${WLAN_INTERFACE_AC1200_1}
+    count=`iwconfig ${WLAN_INTERFACE_AC1200_2} | grep -c 'Mode:Monitor'`
+
+    if [[ $count -eq 1 ]]; then
+        echo "${YELLOW}[!] Start ${WLAN_INTERFACE_AC1200_2} in managed mode ${RESET}"
+        airmon-ng stop ${WLAN_INTERFACE_AC1200_2}
+    fi 
+
+    count=`iwconfig ${WLAN_INTERFACE_AC1200_1} | grep -c 'Mode:Monitor'`
+
+    if [[ $count -eq 1 ]]; then
+        echo "${YELLOW}[!] Start ${WLAN_INTERFACE_AC1200_1} in managed mode ${RESET}"
+        airmon-ng stop ${WLAN_INTERFACE_AC1200_1}
+    fi  
 
     # Bring the primary interface back up
     interface=$(ip addr show | grep -E 'wlan0|eth0' | awk '/inet.*brd/{print $NF; exit}')
