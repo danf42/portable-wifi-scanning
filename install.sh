@@ -129,8 +129,8 @@ apt -y autoremove
 #   hostapd dnsmasq -- used for Access Point
 #   ntp ntpdate -- time sync
 #   gpsd gpsd-clients -- gps 
-#   libcurl4-openssl-dev libssl-dev zlib1g-dev -- hcxdump/hcxtools
-apt -y install kalipi-kernel-headers tmux git dkms hostapd dnsmasq ntp ntpdate gpsd gpsd-clients libcurl4-openssl-dev libssl-dev zlib1g-dev  
+#   libcurl4-openssl-dev libssl-dev zlib1g-dev pkg-config -- hcxdump/hcxtools
+apt -y install kalipi-kernel-headers tmux git dkms hostapd dnsmasq ntp ntpdate gpsd gpsd-clients libcurl4-openssl-dev libssl-dev zlib1g-dev pkg-config   
 
 # -------------------------------------------------------------------------------------------------
 # For Raspberry PI: uncomment disable_overscan so the screen fills monitor

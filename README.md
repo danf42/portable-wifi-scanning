@@ -87,6 +87,11 @@ At this point you can plug in the USB devices and power on the device.  If succe
 ## Termux touch-keyboard
 A custom `termux.properties` file was created to easily navigate the tmux session.  
 
+1. Use `termux-setup-storage` to give termux permissions to access storage 
+2. `cd ~/.termux/`
+2. `cp ../storage/downloads/termux.properties .`
+3. Use `termux-reload-settings` to load custom properties files
+
 ![Termux touch-keyboard](images/termux_keys.png)
 
 ## As a service
