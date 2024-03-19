@@ -296,7 +296,6 @@ iface default inet dhcp
 
 # WiFi USB Adapter TP-Link
 # Realtek Semiconductor Corp. RTL8188EUS 802.11n Wireless Network Adapter
-# Used to set up AP at boot for pwnbox access via WiFi
 allow-hotplug ${WLAN_INTERFACE_TPLINK}
 iface ${WLAN_INTERFACE_TPLINK} inet static
   address 192.168.150.1
