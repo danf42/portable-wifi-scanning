@@ -31,6 +31,7 @@ Updates have been made to this project to simplify the installation process and 
 - [Alfa AWUS036ACH AC1200](https://www.amazon.com/Alfa-Long-Range-Dual-Band-Wireless-External/dp/B00VEEBOPG/ref=sr_1_3?dchild=1&keywords=alfa+ac1200&qid=1605960056&sr=8-3)
 - [GlobalSat BU-353-S4](https://www.amazon.com/GlobalSat-BU-353-S4-USB-Receiver-Black/dp/B008200LHW/ref=sr_1_1?crid=2U82TWJSJ50JS&dchild=1&keywords=bu353s4&qid=1605960073&sprefix=bu+353%2Caps%2C165&sr=8-1)
 - [Raspberry Pi 4 Model B](https://www.adafruit.com/product/4564)
+- [1 ft USB-C Right Angle cables (optional)](https://www.amazon.com/gp/product/B0B5GLHLND/?th=1)
 - Protable battery capable of running the Pi and all the USB devices
 - Raspberry Pi case
 - Micro SD Card
@@ -128,7 +129,9 @@ This project was initially designed to run airodump-ng for wireless recon.
 
 ## Enhancements
 
-1. Make a permanent storage area for the components to sit ontop of the truck body.  
+1. 3D print case to hold the gear, [WiFi Traverl Case](https://makerworld.com/en/models/173957#profileId-195235)
+
+2. Make a permanent storage area for the components to sit ontop of the truck body.  
 
    ![Remote Controlled Truck](images/rc_truck.jpg)
 
