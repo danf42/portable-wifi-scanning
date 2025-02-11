@@ -112,10 +112,18 @@ This project was initially designed to run airodump-ng for wireless recon.
 1. The rtl88 drivers will need to reinstalled when the kernel is updated.  Failure to do this will result in the Alfa cards no longer worked.  Pay close attention to the output of `apt install` to monitor for changes to the kernel.
 2. A udev rule is configured to detect when the GPS device is ready and will start `gpsd.service`.  The udev rule may need to modified to match the specific parameters of your GPS device.
 
-- Parameters to Modified: idVendor, idProduct
+   - Parameters to Modified: idVendor, idProduct
+
+      ```bash
+      udevadm info -a -n /dev/ttyUSB0
+      ```
+
+3. New Wireless and Bluetooth devices may initally be blocked by the raspian OS.  This will prevent them from working.  Run `rfkill` to identify the blocked devices and to unblock them.
 
    ```bash
-   udevadm info -a -n /dev/ttyUSB0
+   rfkill list
+
+   rfkill unblock <id of blocked device>
    ```
 
 ## Enhancements
