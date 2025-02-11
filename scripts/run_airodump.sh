@@ -32,23 +32,12 @@ fi
 verify_usb_devices(){
   echo "${YELLOW}[~] Verify necessary USB devices are attached...${RESET}"
 
-  GPS_UNIT="Prolific Technology, Inc. PL2303 Serial Port"
-  TP_LINK="RTL8188EUS 802.11n"
-  ALFA_AC1200="RTL8812AU"
-
   lsusb_results=$(lsusb)
 
   count=$(echo ${lsusb_results} | grep -c "${GPS_UNIT}")
 
   if [[ ${count} -ne 1 ]]; then
           echo "${RED}[!] Missing GPS Receiver ${RESET}"
-          return 1
-  fi
-
-  count=$(echo ${lsusb_results} | grep -c "${TP_LINK}")
-
-  if [[ ${count} -ne 1 ]]; then
-          echo "${RED}[!] Missing TP-LINK Wifi Adapter ${RESET}"
           return 1
   fi
 
@@ -83,11 +72,11 @@ time_sync(){
 
     else
         echo "${RED}[!] Time is not synced, force sync now... ${RESET}"
-        systemctl stop ntp.service
+        systemctl stop ntpsec.service
         sleep 5
         ntpd -qg
         sleep 5
-        systemctl start ntp.service
+        systemctl start ntpsec.service
         sleep 5
         ntpq -p
     fi
@@ -119,8 +108,16 @@ start(){
 
     # put the ALFA cards into monitor mode
     echo "${YELLOW}[~] Start ${WLAN_INTERFACE_AC1200_2} and ${WLAN_INTERFACE_AC1200_1} in monitor mode ${RESET}"
-    airmon-ng start ${WLAN_INTERFACE_AC1200_2}
-    airmon-ng start ${WLAN_INTERFACE_AC1200_1}
+
+    # Note: The name is too long when airmon-ng renames them because the of the for Linux rules
+    # Use this method to persever the name to help with scripting
+    ifconfig ${WLAN_INTERFACE_AC1200_1} down
+    iwconfig ${WLAN_INTERFACE_AC1200_1} mode monitor
+    ifconfig ${WLAN_INTERFACE_AC1200_1} up
+
+    ifconfig ${WLAN_INTERFACE_AC1200_2} down
+    iwconfig ${WLAN_INTERFACE_AC1200_2} mode monitor
+    ifconfig ${WLAN_INTERFACE_AC1200_2} up
 
     # Verify cards are in monitor mode
     count=`iwconfig ${WLAN_INTERFACE_AC1200_2} | grep -c 'Mode:Monitor'`
@@ -208,29 +205,13 @@ stop(){
     sleep 5
 
     # put the ALFA cards into managed mode
-    count=`iwconfig ${WLAN_INTERFACE_AC1200_2} | grep -c 'Mode:Monitor'`
+    ifconfig ${WLAN_INTERFACE_AC1200_1} down
+    iwconfig ${WLAN_INTERFACE_AC1200_1} mode managed
+    ifconfig ${WLAN_INTERFACE_AC1200_1} up
 
-    if [[ $count -eq 1 ]]; then
-        echo "${YELLOW}[!] Start ${WLAN_INTERFACE_AC1200_2} in managed mode ${RESET}"
-        airmon-ng stop ${WLAN_INTERFACE_AC1200_2}
-    fi 
-
-    count=`iwconfig ${WLAN_INTERFACE_AC1200_1} | grep -c 'Mode:Monitor'`
-
-    if [[ $count -eq 1 ]]; then
-        echo "${YELLOW}[!] Start ${WLAN_INTERFACE_AC1200_1} in managed mode ${RESET}"
-        airmon-ng stop ${WLAN_INTERFACE_AC1200_1}
-    fi  
-
-    # Bring the primary interface back up
-    interface=$(ip addr show | grep -E 'wlan0|eth0' | awk '/inet.*brd/{print $NF; exit}')
-    
-    echo "${YELLOW}[~] Attempting to bring up ${interface}  ${RESET}"
-
-    if [[ "${interface}" = "wlan0" || "${interface}" = "eth0" ]] ; then
-      ifdown ${interface}
-      ifup ${interface}
-    fi
+    ifconfig ${WLAN_INTERFACE_AC1200_2} down
+    iwconfig ${WLAN_INTERFACE_AC1200_2} mode managed
+    ifconfig ${WLAN_INTERFACE_AC1200_2} up
 }
 
 # -------------------------------------------------------------------------------------------------

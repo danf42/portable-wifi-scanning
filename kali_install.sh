@@ -130,7 +130,7 @@ apt -y autoremove
 #   ntp ntpdate -- time sync
 #   gpsd gpsd-clients -- gps 
 #   libcurl4-openssl-dev libssl-dev zlib1g-dev pkg-config -- hcxdump/hcxtools
-apt -y install kalipi-kernel-headers tmux git dkms hostapd dnsmasq ntp ntpdate gpsd gpsd-clients libcurl4-openssl-dev libssl-dev zlib1g-dev pkg-config   
+apt -y install kalipi-kernel-headers tmux git dkms hostapd dnsmasq ntp ntpdate ntpsec gpsd gpsd-clients libcurl4-openssl-dev libssl-dev zlib1g-dev pkg-config   
 
 # -------------------------------------------------------------------------------------------------
 # For Raspberry PI: uncomment disable_overscan so the screen fills monitor
@@ -166,10 +166,13 @@ cat > /etc/default/gpsd << EOF
 DEVICES="/dev/ttyUSB0"
 
 # Other options you want to pass to gpsd
-GPSD_OPTIONS="-n"
+GPSD_OPTIONS="-F /var/run/gpsd.sock -b -n"
 
 # Automatically hot add/remove USB GPS devices via gpsdctl
 USBAUTO="true"
+
+# Start the gpsd daemon automatically at boot time
+START_DAEMON="true"
 EOF
 
 # -------------------------------------------------------------------------------------------------
@@ -177,20 +180,38 @@ EOF
 # -------------------------------------------------------------------------------------------------
 echo "${YELLOW}[~] Update date and time...${RESET}"
 
-cat > /etc/ntp.conf << EOF
+cat > /etc/ntpsec/ntp.conf << EOF
 driftfile /var/lib/ntp/ntp.drift
 logfile /var/log/ntp.log
 
+restrict default kod nomodify notrap nopeer
+restrict -6 default kod nomodify notrap nopeer
+
+restrict 127.0.0.1
+
+# Restrict reading from IPv6 space
+restrict -6 ::1
+
 # GPS Serial data reference (NTP0)
 server 127.127.28.0 minpoll 4 maxpoll 4
-fudge 127.127.28.0 time1 0.0 flag1 1 refid GPS
+fudge 127.127.28.0 time1 0.0 refid GPS
 
 # GPS PPS reference (NTP1)
-server 127.127.28.1 minpoll 4 maxpoll 4 prefer
-fudge 127.127.28.1 flag1 1 refid PPS
+server 127.127.28.1 minpoll 4 maxpoll 4
+fudge 127.127.28.1 refid PPS
+
+# Ingore time difference
+tinker panic 0
 EOF
 
-systemctl enable ntp.service
+# Give ntpsec user permission to GPS
+sudo usermod -aG dialout ntpsec
+
+# Needed for ntpsec metrics
+mkdir /var/log/ntpsec/
+chown ntpsec:ntpsec /var/log/ntpsec/
+
+systemctl enable ntpsec.service
 
 # Set timezone 
 timedatectl set-timezone Etc/UTC

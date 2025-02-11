@@ -1,9 +1,8 @@
 #!/bin/bash
+exec > >(tee -a /var/log/portable_wifi_installer.log) 2>&1
 
 # -------------------------------------------------------------------------------------------------
-# WIFI Scanning Service Install Script for Raspberry Pi
-# -------------------------------------------------------------------------------------------------
-# This script will install and configure the necessary packagers for wifi scanning service
+# Before getting started...
 # 
 # PLEASE Review the variables under config/variables.sh to ensure they match your system and hardware
 #
@@ -24,16 +23,15 @@ prompt_confirm() {
 }
 
 # -------------------------------------------------------------------------------------------------
-# Prompt user to install as a service
+# Logger helper
 # -------------------------------------------------------------------------------------------------
-prompt_service_install() {
-    read -p "${1:-Continue?} [y/n]:" -n1 -r
-    case $REPLY in
-      [yY]) echo ; return 0 ;;
-      [nN]) echo ; return 1 ;;
-      *) printf "Invalid input"
-    esac 
+logger() {
+  DT=$(date '+%Y/%m/%d %H:%M:%S')
+  echo "$DT $0: $1"
 }
+
+# Don't prompt for interaction
+export DEBIAN_FRONTEND=noninteractive
 
 # Save starting directory
 SAVED_DIR=$(pwd)
@@ -55,29 +53,6 @@ YELLOW=`tput setaf 3`
 CYAN=`tput setaf 6`
 RESET=`tput sgr0`
 
-# Optional argument to install wifi-scanning service
-SERVICE_INSTALL=0
-
-# Process commandline optional arguments
-if [[ "$1" = "-s" || "$1" = "--service" ]]; then 
-  SERVICE_INSTALL=1
-  echo "${YELLOW}[*] wifi-scanning service will be installed ${RESET}"
-
-elif [[ "$1" = "-h" || "$1" = "--help" ]]; then  
-  echo
-  echo "${CYAN}Install and configure this device for wifi scanning${RESET}"
-  echo 
-  echo "${CYAN}Script must be run as root${RESET}"
-  echo "${CYAN}./install.sh [-s|-h] ${RESET}"
-  echo "${CYAN}  -s|--service, install wifi-scanning service ${RESET}"
-  echo "${CYAN}  -h|--help, display help message ${RESET}"
-  echo "${CYAN}  No arguments will allow manual execution of the wifi scanning scripts${RESET}"
-  echo
-
-  exit 0
-
-fi
-
 # Check if we are running script as root
 if [[ $(echo $EUID) -ne 0 ]]; then
    echo "${RED}[!] This script must be run as root ${RESET}"
@@ -89,7 +64,6 @@ echo "${BLUE}*                                                                  
 echo "${BLUE}*                     Wifi Scanning Setup                              *${RESET}"
 echo "${BLUE}*                                                                      *${RESET}"
 echo "${BLUE}* The following external devices are utilized in this setup:           *${RESET}"
-echo "${BLUE}*   - TP-LINK TL-WN725N used for the Access Point                      *${RESET}"
 echo "${BLUE}*   - ALFA AC1200 AWUS036ACH used for scanning                         *${RESET}"
 echo "${BLUE}*   - GlobalSat BU-353-S4 USB GPS Receiver                             *${RESET}"
 echo "${BLUE}*                                                                      *${RESET}"
@@ -104,15 +78,22 @@ echo
 prompt_confirm "Ready to continue?" || exit 0
 
 # -------------------------------------------------------------------------------------------------
-# Verify service install status if not added as argument
+# Create directories required for setup
 # -------------------------------------------------------------------------------------------------
-if [[ ${SERVICE_INSTALL} -eq 0 ]]; then 
-  prompt_service_install "Install as a service?" && SERVICE_INSTALL=1
+# List of names
+dirs_to_create=("${REPO_DIR}" "${TOOL_DIR}" "${DRIVER_DIR}")
 
-  if [[ ${SERVICE_INSTALL} -eq 1 ]]; then
-    echo "${YELLOW}[*] wifi-scanning service will be installed ${RESET}"
+# Loop through each name
+for dirname in "${dirs_to_create[@]}"; do
+  # Check if the directory already exists
+  if [ ! -d "$dirname" ]; then
+    # Create the directory if it doesn't exist
+    mkdir -p "$dirname"
+    echo "Directory $dirname created."
+  else
+    echo "Directory $dirname already exists."
   fi
-fi
+done
 
 # -------------------------------------------------------------------------------------------------
 # Update and install OS packages
@@ -123,41 +104,51 @@ apt update
 apt -y upgrade
 apt -y dist-upgrade
 apt -y autoremove
+apt -y clean
 
 # Install required packages
-#   hostapd dnsmasq -- used for Access Point
-#   ntp ntpdate -- time sync
-#   gpsd gpsd-clients -- gps 
-#   libcurl4-openssl-dev libssl-dev zlib1g-dev -- hcxdump/hcxtools
-apt -y install raspberrypi-kernel-headers tmux git dkms hostapd dnsmasq ntp ntpdate gpsd gpsd-clients libcurl4-openssl-dev libssl-dev zlib1g-dev  
-
+apt -y install raspberrypi-kernel-headers tmux git dkms hostapd dnsmasq ntp ntpdate \
+ dhcpcd5 ntpsec gpsd gpsd-clients libcurl4-openssl-dev \
+ tshark python3-pip python3-venv python3-openssl curl vim git wget \
+ ipcalc unzip openssl net-tools dnsutils nfs-common smbclient nmap \
+ netdiscover tshark snmp onesixtyone libssl-dev zlib1g-dev
+ 
 # -------------------------------------------------------------------------------------------------
 # Change SSH Host Keys
 # -------------------------------------------------------------------------------------------------
 echo "${YELLOW}[~] Change SSH Host Keys...${RESET}"
 rm /etc/ssh/ssh_host_*
 dpkg-reconfigure openssh-server
-systemctl restart ssh.service 
+systemctl restart ssh.service
 
 # -------------------------------------------------------------------------------------------------
-# Disable Bluetooth
+# Update Message Of The Day
 # -------------------------------------------------------------------------------------------------
-echo "${YELLOW}[~] Disable Bluetooth...${RESET}"
-systemctl disable bluetooth.service
-systemctl stop bluetooth.service
+echo "${YELLOW}[~] Update motd banner...${RESET}"
+if [ -f ${CONFIG_DIR}/motd ]; then
+    ${CONFIG_DIR}/motd /etc/motd
+fi
 
 # -------------------------------------------------------------------------------------------------
-# Unblock Wireless
+# Unblock Wireless and Bluetooth Service
 # -------------------------------------------------------------------------------------------------
-echo "${YELLOW}[~] Unblock WiFi...${RESET}"
+echo "${YELLOW}[~] Unblock Wireless and Bluetooth Service...${RESET}"
+
 id=$(rfkill list all | grep Wireless | cut -d":" -f1)
 rfkill unblock $id
+
+id=$(rfkill list all | grep Bluetooth | cut -d":" -f1)
+rfkill unblock $id
+
 rfkill list all
 
 # -------------------------------------------------------------------------------------------------
-# Update parameters for gpsd
+# Configure GPS 
 # -------------------------------------------------------------------------------------------------
 echo "${YELLOW}[~] Update parameters for gpsd...${RESET}"
+
+systemctl unmask gpsd.service
+systemctl disable gpsd.service
 
 cat > /etc/default/gpsd << EOF
 # Devices gpsd should collect to at boot time.
@@ -165,32 +156,83 @@ cat > /etc/default/gpsd << EOF
 DEVICES="/dev/ttyUSB0"
 
 # Other options you want to pass to gpsd
-GPSD_OPTIONS="-n"
+GPSD_OPTIONS="-F /var/run/gpsd.sock -b -n"
 
 # Automatically hot add/remove USB GPS devices via gpsdctl
 USBAUTO="true"
+
+# Start the gpsd daemon automatically at boot time
+START_DAEMON="true"
 EOF
+
+echo "${YELLOW}[~] Create udev to watch for gps device...${RESET}"
+
+# Information is obtained from command
+#  > udevadm info -a -n /dev/ttyUSB0
+# Note: parameters will need to change for different GSP device
+
+cat > /etc/udev/rules.d/99-usb-gps.rules << EOF
+SUBSYSTEM=="tty", ATTRS{idVendor}=="067b", ATTRS{idProduct}=="23a3",ENV{SYSTEMD_WANTS}="gpsd.service"
+EOF
+
+chmod 644 /etc/udev/rules.d/99-usb-gps.rules
+
+echo "${YELLOW}[~] Update gspd.service ...${RESET}"
+
+cat > /usr/lib/systemd/system/gpsd.service << EOF
+[Unit]
+Description=GPS (Global Positioning System) Daemon
+Requires=gpsd.socket
+
+[Service]
+Type=forking
+EnvironmentFile=-/etc/default/gpsd
+ExecStart=/usr/sbin/gpsd \$GPSD_OPTIONS \$OPTIONS \$DEVICES
+
+[Install]
+WantedBy=multi-user.target
+Also=gpsd.socket
+EOF
+
+echo "${YELLOW}[~] Reload services for gpsd updates to take effect ...${RESET}"
+systemctl restart systemd-udevd
+systemctl daemon-reload
 
 # -------------------------------------------------------------------------------------------------
 # Update date and time
 # -------------------------------------------------------------------------------------------------
 echo "${YELLOW}[~] Update date and time...${RESET}"
 
-cat > /etc/ntp.conf << EOF
-driftfile /var/lib/ntp/ntp.drift
+cat > /etc/ntpsec/ntp.conf << EOF
+driftfile /var/lib/ntpsec/ntp.drift
+leapfile /usr/share/zoneinfo/leap-seconds.list
 logfile /var/log/ntp.log
 
-# GPS Serial data reference (NTP0)
-server 127.127.28.0 minpoll 4 maxpoll 4
-fudge 127.127.28.0 time1 0.0 flag1 1 refid GPS
+# By default, exchange time with everybody, but don't allow configuration.
+restrict default kod nomodify nopeer noquery limited
 
-# GPS PPS reference (NTP1)
+# Local users may interrogate the ntp server more closely.
+restrict 127.0.0.1
+restrict ::1
+
+# GPS Serial data reference
+server 127.127.28.0 minpoll 4 maxpoll 4
+fudge 127.127.28.0 time1 0.0 refid GPS
+
+# GPS PPS reference
 server 127.127.28.1 minpoll 4 maxpoll 4 prefer
-fudge 127.127.28.1 flag1 1 refid PPS
+fudge 127.127.28.1 refid PPS
+
+# Ingore time difference
+tinker panic 0
 EOF
 
+# Needed for ntpsec metrics
+mkdir /var/log/ntpsec/
+chown ntpsec:ntpsec /var/log/ntpsec/
+
 # Enable NTP service
-systemctl enable ntp.service
+systemctl enable ntpsec.service
 
 # Set timezone 
 timedatectl set-timezone Etc/UTC
@@ -205,38 +247,22 @@ echo "${YELLOW}[~] Install rtl8188eus driver for TP-Link USB Adapter...${RESET}"
 # Blacklist the default driver:
 echo "blacklist r8188eu" > "/etc/modprobe.d/realtek.conf"
 
-cd /opt
-git clone https://github.com/aircrack-ng/rtl8188eus.git
+cd ${DRIVER_DIR}
+git clone https://github.com/lwfinger/rtw88
 
-cd /opt/rtl8188eus
+cd ${DRIVER_DIR}/rtw88
 
-sed -i 's/CONFIG_PLATFORM_I386_PC = y/CONFIG_PLATFORM_I386_PC = n/g' Makefile
-sed -i 's/CONFIG_PLATFORM_ARM64_RPI = n/CONFIG_PLATFORM_ARM64_RPI = y/g' Makefile
-sed -i 's/^dkms build/ARCH=arm dkms build/' dkms-install.sh
-sed -i 's/^MAKE="/MAKE="ARCH=arm\ /' dkms.conf
+# make and make install 
+make clean && make && make install && sudo make install_fw
 
-./dkms-install.sh
+cd ${HOME}
 
-cd ${SAVED_DIR}
-
-# -------------------------------------------------------------------------------------------------
-# Install drivers for Alfa AC1200 USB Wireless cards
-# -------------------------------------------------------------------------------------------------
-echo "${YELLOW}[~] Install rtl8812au driver for Alfa AC1200 USB Wireless cards...${RESET}"
-
-cd /opt
-git clone https://github.com/aircrack-ng/rtl8812au.git
-
-cd /opt/rtl8812au
-
-sed -i 's/CONFIG_PLATFORM_I386_PC = y/CONFIG_PLATFORM_I386_PC = n/g' Makefile
-sed -i 's/CONFIG_PLATFORM_ARM64_RPI = n/CONFIG_PLATFORM_ARM64_RPI = y/g' Makefile
-export ARCH=arm
-sed -i 's/^MAKE="/MAKE="ARCH=arm\ /' dkms.conf
-
-make dkms_install
-
-cd ${SAVED_DIR}
+echo "${RED}************************************************************************${RESET}"
+echo "${RED}*                          NOTICE!!                                    *${RESET}"
+echo "${RED}*         Wireless drivers will need to be reinstalled                 *${RESET}"
+echo "${RED}*             everytime the Kernel is updated!                         *${RESET}"
+echo "${RED}*                                                                      *${RESET}"
+echo "${RED}************************************************************************${RESET}"
 
 # -------------------------------------------------------------------------------------------------
 # Install aircrack-ng
@@ -244,12 +270,14 @@ cd ${SAVED_DIR}
 echo "${YELLOW}[~] Install aircrack-ng...${RESET}"
 
 # Install build dependencies
-apt -y install build-essential autoconf automake libtool pkg-config libnl-3-dev libnl-genl-3-dev libssl-dev ethtool shtool rfkill zlib1g-dev libpcap-dev libsqlite3-dev libpcre3-dev libhwloc-dev libcmocka-dev hostapd wpasupplicant tcpdump screen iw usbutils
+apt -y install build-essential autoconf automake libtool pkg-config libnl-3-dev libnl-genl-3-dev libssl-dev \
+  ethtool shtool rfkill zlib1g-dev libpcap-dev libsqlite3-dev libpcre2-dev libhwloc-dev libcmocka-dev \
+  hostapd wpasupplicant tcpdump screen iw usbutils expect
 
-cd /opt
+cd ${TOOL_DIR}
 git clone https://github.com/aircrack-ng/aircrack-ng.git
 
-cd /opt/aircrack-ng
+cd ${TOOL_DIR}/aircrack-ng
 
 # Generate configuration file
 autoreconf -i
@@ -266,14 +294,15 @@ ldconfig
 # update the list of OUIs to display manufactures
 airodump-ng-oui-update
 
-cd ${SAVED_DIR}
+cd ${HOME}
 
 # -------------------------------------------------------------------------------------------------
-# Disable Network-Manager
+# Disable and Remove NetworkManager
 # -------------------------------------------------------------------------------------------------
 echo "${YELLOW}[~] Disable Network-Manager...${RESET}"
 systemctl stop NetworkManager.service
 systemctl disable NetworkManager.service
+apt -y purge network-manager
 
 # -------------------------------------------------------------------------------------------------
 # Configure perdictable naming of interfaces (ID_NET_NAME_MAC)
@@ -301,11 +330,50 @@ SUBSYSTEM=="net", ACTION=="add", DRIVERS=="?*", ATTR{type}=="1", ATTR{dev_id}=="
 SUBSYSTEM=="net", ACTION=="add", DRIVERS=="?*", ATTR{type}=="1", ATTR{dev_id}=="0x0", ATTR{address}=="${MAC_WLAN0}", KERNEL=="wlan*", NAME="wlan0"
 EOF
 
+chmod 644 /etc/udev/rules.d/70-persistent-net.rules
+
 cp ${CONFIG_DIR}/73-usb-net-by-mac.rules /etc/udev/rules.d/73-usb-net-by-mac.rules
 chmod 644 /etc/udev/rules.d/73-usb-net-by-mac.rules
 
 systemctl restart systemd-udevd
 systemctl status systemd-udevd
+
+# -------------------------------------------------------------------------------------------------
+# Configure systemd-netword
+# -------------------------------------------------------------------------------------------------
+echo "${YELLOW}[~] Configure systemd-networkd${RESET}"
+systemctl enable systemd-networkd
+
+cat > /etc/systemd/network/00-eth0.network << EOF
+[Match]
+Name=eth0
+
+[Network]
+DHCP=yes
+LinkLocalAddressing=no
+EOF
+
+chmod 644 /etc/systemd/network/00-eth0.network
+
+cat > /etc/systemd/network/01-wlan0.network << EOF
+[Match]
+Name=wlan0
+
+[Network]
+DHCP=no
+Address=192.168.150.1/24
+EOF
+
+chmod 644 /etc/systemd/network/01-wlan0.network
+
+# -------------------------------------------------------------------------------------------------
+# Ignore wlan0 from dhcpd
+# -------------------------------------------------------------------------------------------------
+cat >> /etc/dhcpcd.conf << EOF
+
+# Deny DHCP from controllering wlan0 interface
+denyinterfaces wlan0 >> /etc/dhcpcd.conf
+EOF
 
 # -------------------------------------------------------------------------------------------------
 # Configure network interfaces
@@ -314,44 +382,6 @@ echo "${YELLOW}[~] Configure network interfaces${RESET}"
 
 cp ${CONFIG_DIR}/wpa_supplicant.conf /etc/wpa_supplicant/wpa_supplicant.conf
 chmod 644 /etc/wpa_supplicant/wpa_supplicant.conf
-
-mv /etc/network/interfaces /etc/network/interfaces.old
-
-cat > /etc/network/interfaces << EOF
-auto lo
-iface lo inet loopback
-
-auto eth0
-allow-hotplug eth0
-iface eth0 inet dhcp
-
-# wlan0: Built-in WiFi interface (Broadcom 43430)
-# Used to connect to Internet (when eth0 not used)
-auto wlan0
-allow-hotplug wlan0
-iface wlan0 inet manual
-  wpa-roam /etc/wpa_supplicant/wpa_supplicant.conf
-iface default inet dhcp
-
-# WiFi USB Adapter TP-Link
-# Realtek Semiconductor Corp. RTL8188EUS 802.11n Wireless Network Adapter
-# Used to set up AP at boot for pwnbox access via WiFi
-allow-hotplug ${WLAN_INTERFACE_TPLINK}
-iface ${WLAN_INTERFACE_TPLINK} inet static
-  address 192.168.150.1
-  netmask 255.255.255.0
-  ip route add -net 192.168.150.0 netmask 255.255.255.0 gw 192.168.150.1
-
-# Alfa AC1200 USB Wireless cards
-# Disabled by default at boot
-iface ${WLAN_INTERFACE_AC1200_1} inet manual
-ifdown ${WLAN_INTERFACE_AC1200_1}
-
-# WiFi USB Adapter Alfa AWUS036ACH Realtek RTL8812AU
-# Disabled by default at boot
-iface ${WLAN_INTERFACE_AC1200_2} inet manual
-ifdown ${WLAN_INTERFACE_AC1200_2}
-EOF
 
 # -------------------------------------------------------------------------------------------------
 # Configure hostapd and enable it as a service
@@ -371,7 +401,7 @@ fi
 
 # configure hostapd
 cat > /etc/hostapd/hostapd.conf << EOF
-interface=${WLAN_INTERFACE_TPLINK}
+interface=${MGMT_INTERFACE}
 driver=nl80211
 hw_mode=g
 channel=6
@@ -402,7 +432,6 @@ EOF
 
 # this is require for raspberry pi devices
 systemctl unmask hostapd.service
-
 systemctl enable hostapd.service
 
 # -------------------------------------------------------------------------------------------------
@@ -416,7 +445,7 @@ systemctl enable hostapd.service
 echo "${YELLOW}[~] Configure dnsmaq...${RESET}"
 
 cat > /etc/dnsmasq.conf << EOF
-interface=${WLAN_INTERFACE_TPLINK}
+interface=${MGMT_INTERFACE}
 bind-interfaces
 dhcp-range=192.168.150.2,192.168.150.5,12h
 listen-address=192.168.150.1
@@ -428,8 +457,10 @@ dhcp-authoritative
 dhcp-option=3,192.168.150.1
 dhcp-option=6,192.168.150.1
 server=8.8.8.8
+server=9.9.9.9
 EOF
 
+systemctl unmask dnsmasq.service
 systemctl enable dnsmasq.service
 
 # -------------------------------------------------------------------------------------------------
@@ -437,18 +468,97 @@ systemctl enable dnsmasq.service
 # -------------------------------------------------------------------------------------------------
 echo "${YELLOW}[~] Install hcxtools and hcxdumptool...${RESET}"
 
-cd /opt
+cd ${TOOL_DIR}
 
 git clone https://github.com/ZerBea/hcxtools.git
 git clone https://github.com/ZerBea/hcxdumptool.git
 
-cd /opt/hcxtools/
+cd ${TOOL_DIR}/hcxtools/
 make && make install
 
-cd /opt/hcxdumptool
+cd ${TOOL_DIR}/hcxdumptool
 make && make install
 
 cd ${SAVED_DIR}
+
+# -------------------------------------------------------------------------------------------------
+# Install Docker
+# -------------------------------------------------------------------------------------------------
+echo "${YELLOW}[~] Installing Docker...${RESET}"
+for pkg in docker.io docker-doc docker-compose podman-docker containerd runc; do sudo apt-get remove $pkg; done
+
+# Add Docker's official GPG key:
+sudo apt-get update
+sudo apt-get -y install ca-certificates curl
+sudo install -m 0755 -d /etc/apt/keyrings
+sudo curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc
+sudo chmod a+r /etc/apt/keyrings/docker.asc
+
+# Add the repository to Apt sources:
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian \
+  bookworm stable" | \
+  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+sudo apt-get update
+
+sudo apt-get -y install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+sudo service docker enable
+sudo service docker start
+
+usermod -aG docker ${BASE_USER_NAME}
+
+# -------------------------------------------------------------------------------------------------
+# Install Gowitness
+# -------------------------------------------------------------------------------------------------
+echo "${YELLOW}[~] Installing Gowitness Docker Image...${RESET}"
+docker pull ghcr.io/sensepost/gowitness:latest
+
+# -------------------------------------------------------------------------------------------------
+# Git Pull eaphammer
+# -------------------------------------------------------------------------------------------------
+echo "${YELLOW}[~] Git Pull eaphammer...${RESET}"
+cd ${TOOL_DIR}
+
+git clone https://github.com/s0lst1c3/eaphammer.git
+
+cd ${TOOL_DIR}/eaphammer
+echo y | sudo ./raspbian-setup
+
+cd ${HOME}
+
+# -------------------------------------------------------------------------------------------------
+# Install Kismet
+# -------------------------------------------------------------------------------------------------
+echo "${YELLOW}[~] Installing Kismet...${RESET}"
+
+mkdir -m 0755 -p /etc/apt/keyrings/
+curl -fsSL https://www.kismetwireless.net/repos/kismet-release.gpg.key | sudo gpg --dearmor -o /etc/apt/keyrings/kismet-release.gpg
+
+cat > /etc/apt/sources.list.d/kismet-release.list << EOF
+deb [arch=arm64 trusted=yes] https://www.kismetwireless.net/repos/apt/release/bookworm bookworm main
+EOF
+
+chmod 644 /etc/apt/sources.list.d/kismet-release.list
+
+apt-get update
+apt -y install kismet
+
+usermod -aG kismet ${BASE_USER_NAME}
+
+# -------------------------------------------------------------------------------------------------
+# Enable Packet Forwarding
+# -------------------------------------------------------------------------------------------------
+echo "${YELLOW}[~] Enable Packet Forwarding...${RESET}"
+sed -i '/#net.ipv4.ip_forward=1/s/^#//g' /etc/sysctl.conf
+
+# -------------------------------------------------------------------------------------------------
+# Git pull fluker
+# -------------------------------------------------------------------------------------------------
+echo "${YELLOW}[~] Git pull fluker...${RESET}"
+
+sudo -H -u ${BASE_USER_NAME} /bin/bash -c "cd ${REPO_DIR} && \
+  git clone https://github.com/danf42/fluker.git"
 
 # -------------------------------------------------------------------------------------------------
 # Copy scanning scripts to target directory
@@ -461,9 +571,6 @@ mkdir ${TARGET_DIR}
 cp ${SCRIPT_DIR}/run_airodump.sh ${TARGET_DIR}/run_airodump.sh
 chmod 755 ${TARGET_DIR}/run_airodump.sh
 
-cp ${SCRIPT_DIR}/run_hcxdump.sh ${TARGET_DIR}/run_hcxdump.sh
-chmod 755 ${TARGET_DIR}/run_hcxdump.sh
-
 cp ${CONFIG_DIR}/variables.sh ${TARGET_DIR}/variables.sh
 chmod 755 ${TARGET_DIR}/variables.sh
 
@@ -471,58 +578,19 @@ chmod 755 ${TARGET_DIR}/variables.sh
 VAR_FILE_PATH=${TARGET_DIR}/variables.sh
 
 sed -i "s|VARIABLE_PATH|${VAR_FILE_PATH}|" ${TARGET_DIR}/run_airodump.sh
-sed -i "s|VARIABLE_PATH|${VAR_FILE_PATH}|" ${TARGET_DIR}/run_hcxdump.sh
 
 # -------------------------------------------------------------------------------------------------
-# Install wifi-scanning service
+# Adjust Permissions
 # -------------------------------------------------------------------------------------------------
-if [[ ${SERVICE_INSTALL} -eq 1 ]]; then 
-
-  echo "${YELLOW}[~] Install wifi-scanning service...${RESET}"
-
-cat > /etc/systemd/system/wifi-scanning.service << EOF
-[Unit]
-Description=Wifi Monitoring via airodump-ng
-Requires=network-online.target gpsd.service
-After=network.target gpsd.service ntp.service
-
-[Service]
-Type=simple
-User=root
-ExecStart=${TARGET_DIR}/run_airodump.sh start
-ExecStop=${TARGET_DIR}/run_airodump.sh stop
-RemainAfterExit=y
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-  # enable as a service
-  chmod 644 /etc/systemd/system/wifi-scanning.service
-  systemctl enable wifi-scanning.service
-
-else
-
-  echo "${YELLOW}[~] Skipping installation of wifi_scanning service...${RESET}"
-
-fi
-
-# -------------------------------------------------------------------------------------------------
-# Add aliases to users profile
-# -------------------------------------------------------------------------------------------------
-echo "${YELLOW}[~] Adding aliases to $BASE_USER_NAME profile ...${RESET}"
-echo "" >> /home/$BASE_USER_NAME/.bashrc
-echo "alias astart='sudo /root/wifi_scanning_tools/run_airodump.sh start'" >> /home/$BASE_USER_NAME/.bashrc
-echo "alias astop='sudo /root/wifi_scanning_tools/run_airodump.sh stop'" >> /home/$BASE_USER_NAME/.bashrc
-echo "alias hstart='sudo /root/wifi_scanning_tools/run_hcxdump.sh start'" >> /home/$BASE_USER_NAME/.bashrc
-echo "alias hstop='sudo /root/wifi_scanning_tools/run_hcxdump.sh stop'" >> /home/$BASE_USER_NAME/.bashrc
-echo "alias shutdown='sudo shutdown -h 1'" >> /home/$BASE_USER_NAME/.bashrc
-echo "alias reboot='sudo shutdown -r now'" >> /home/$BASE_USER_NAME/.bashrc
+chown -R ${BASE_USER_NAME}:${BASE_USER_NAME} ${REPO_DIR}
 
 # -------------------------------------------------------------------------------------------------
 # Cleanup and reboot
 # -------------------------------------------------------------------------------------------------
-echo "${GREEN}[+] Installation is complete!  The system will shutdown now.${RESET}"
+apt -y autoremove
+apt -y clean
+
+echo "${GREEN}[+] Installation is complete! ${RESET}"
 
 prompt_confirm "Shutdown Now?" || exit 0
 

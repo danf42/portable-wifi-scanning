@@ -99,11 +99,11 @@ time_sync(){
 
     else
         echo "${RED}[!] Time is not synced, force sync now... ${RESET}"
-        systemctl stop ntp.service
+        systemctl stop ntpsec.service
         sleep 5
         ntpd -qg
         sleep 5
-        systemctl start ntp.service
+        systemctl start ntpsec.service
         sleep 5
         ntpq -p
     fi
@@ -135,7 +135,9 @@ start(){
 
     # put the ALFA cards into monitor mode
     echo "${YELLOW}[~] Start ${WLAN_INTERFACE_AC1200} in monitor mode ${RESET}"
-    airmon-ng start ${WLAN_INTERFACE_AC1200}
+    ifconfig ${WLAN_INTERFACE_AC1200} down
+    iwconfig ${WLAN_INTERFACE_AC1200} mode monitor
+    ifconfig ${WLAN_INTERFACE_AC1200} up
 
     # Verify cards are in monitor mode
     count=`iwconfig ${WLAN_INTERFACE_AC1200} | grep -c 'Mode:Monitor'`
@@ -176,7 +178,7 @@ start(){
         tmux new-window -t ${SESSION}:1 -n 'hcxdump'
 
         # send the airodump commands to the correct session/window/panel
-        tmux send-keys -t ${SESSION}:'hcxdump' "hcxdumptool -o ${now}_hcxdump.pcapng -i ${WLAN_INTERFACE_AC1200} --enable_status 1 --disable_client_attacks --disable_deauthentication --use_gpsd" C-m 
+        tmux send-keys -t ${SESSION}:'hcxdump' "hcxdumptool -w ${now}_hcxdump.pcapng -i ${WLAN_INTERFACE_AC1200} --disable_deauthentication --gpsd" C-m 
 
         # create another window to monitor gps
         tmux new-window -t ${SESSION}:2 -n 'gps'

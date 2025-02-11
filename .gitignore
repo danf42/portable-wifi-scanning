@@ -2,4 +2,4 @@
 *_prod/
 
 # Files to ingore
-*_prod.sh
+*.drawio

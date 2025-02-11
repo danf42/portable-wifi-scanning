@@ -9,9 +9,6 @@
 #  aabbccddffgg = MAC address of device
 # -------------------------------------------------------------------------------------------------
 
-# TP-Link USB WiFi Adapter for PC(TL-WN725N)
-WLAN_INTERFACE_TPLINK="CHANGE_ME"
-
 # Alfa AC1200 USB Wireless cards
 WLAN_INTERFACE_AC1200_1="CHANGE_ME"
 WLAN_INTERFACE_AC1200_2="CHANGE_ME"
@@ -23,10 +20,11 @@ MAC_ETH0="CHANGE_ME"
 MAC_WLAN0="CHANGE_ME"
 
 # -------------------------------------------------------------------------------------------------
-# Access Point ESSID and Password
+# Management Access Point
 # -------------------------------------------------------------------------------------------------
 AP_ESSID="CHANGE_ME"
 AP_WPA_PASSPHRASE="CHANGE_ME"
+MGMT_INTERFACE="CHANGE_ME"
 
 # -------------------------------------------------------------------------------------------------
 # Target directory to install the scanning scripts
@@ -37,3 +35,17 @@ TARGET_DIR="/root/wifi_scanning_tools"
 # Base username
 # -------------------------------------------------------------------------------------------------
 BASE_USER_NAME="CHANGE_ME"
+
+# -------------------------------------------------------------------------------------------------
+# Directories
+# -------------------------------------------------------------------------------------------------
+REPO_DIR="/home/${BASE_USER_NAME}/repos"
+TOOL_DIR="/opt/tools"
+DRIVER_DIR="/opt/drivers"
+
+# -------------------------------------------------------------------------------------------------
+# Identifies for USB devices (Output from lsusb)
+# -------------------------------------------------------------------------------------------------
+GPS_UNIT="Prolific Technology, Inc. ATEN Serial Bridge"
+TP_LINK="RTL8188EUS 802.11n"
+ALFA_AC1200="RTL8812AU"
