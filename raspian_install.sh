@@ -30,6 +30,12 @@ logger() {
   echo "$DT $0: $1"
 }
 
+# Check if we are running script as root
+if [[ $(echo $EUID) -ne 0 ]]; then
+   echo "${RED}[!] This script must be run as root ${RESET}"
+   exit 1
+fi
+
 # Don't prompt for interaction
 export DEBIAN_FRONTEND=noninteractive
 
@@ -42,6 +48,14 @@ CONFIG_DIR="${SAVED_DIR}/config"
 # script dir
 SCRIPT_DIR="${SAVED_DIR}/scripts"
 
+# Check for Production Configuration files
+if [ -d "${CONFIG_DIR}_prod" ]; then
+    echo "Staging production configuration files..."
+    cp -r ${CONFIG_DIR}_prod/* ${CONFIG_DIR}
+else
+    echo "did not find ${CONFIG_DIR}_prod"
+fi  
+
 # Source configuration file 
 source ${CONFIG_DIR}/variables.sh
 
@@ -52,12 +66,6 @@ BLUE=`tput setaf 4`
 YELLOW=`tput setaf 3`
 CYAN=`tput setaf 6`
 RESET=`tput sgr0`
-
-# Check if we are running script as root
-if [[ $(echo $EUID) -ne 0 ]]; then
-   echo "${RED}[!] This script must be run as root ${RESET}"
-   exit 1
-fi
 
 echo "${BLUE}************************************************************************${RESET}"
 echo "${BLUE}*                                                                      *${RESET}"
@@ -111,7 +119,8 @@ apt -y install raspberrypi-kernel-headers tmux git dkms hostapd dnsmasq ntp ntpd
  dhcpcd5 ntpsec gpsd gpsd-clients libcurl4-openssl-dev \
  tshark python3-pip python3-venv python3-openssl curl vim git wget \
  ipcalc unzip openssl net-tools dnsutils nfs-common smbclient nmap \
- netdiscover tshark snmp onesixtyone libssl-dev zlib1g-dev
+ netdiscover tshark snmp onesixtyone libssl-dev zlib1g-dev \
+ bridge-utils wireless-tools monit
  
 # -------------------------------------------------------------------------------------------------
 # Change SSH Host Keys
@@ -126,7 +135,7 @@ systemctl restart ssh.service
 # -------------------------------------------------------------------------------------------------
 echo "${YELLOW}[~] Update motd banner...${RESET}"
 if [ -f ${CONFIG_DIR}/motd ]; then
-    ${CONFIG_DIR}/motd /etc/motd
+    cp ${CONFIG_DIR}/motd /etc/motd
 fi
 
 # -------------------------------------------------------------------------------------------------
@@ -342,7 +351,6 @@ systemctl status systemd-udevd
 # Configure systemd-netword
 # -------------------------------------------------------------------------------------------------
 echo "${YELLOW}[~] Configure systemd-networkd${RESET}"
-systemctl enable systemd-networkd
 
 cat > /etc/systemd/network/00-eth0.network << EOF
 [Match]
@@ -365,6 +373,11 @@ Address=192.168.150.1/24
 EOF
 
 chmod 644 /etc/systemd/network/01-wlan0.network
+
+systemctl unmask systemd-networkd
+systemctl enable systemd-networkd
+
+networkctl
 
 # -------------------------------------------------------------------------------------------------
 # Ignore wlan0 from dhcpd
@@ -528,6 +541,19 @@ echo y | sudo ./raspbian-setup
 cd ${HOME}
 
 # -------------------------------------------------------------------------------------------------
+# Git Pull bettercap
+# -------------------------------------------------------------------------------------------------
+echo "${YELLOW}[~] Git Pull bettercap...${RESET}"
+cd ${TOOL_DIR}
+
+git clone https://github.com/danf42/bettercap.git
+
+cd ${TOOL_DIR}/bettercap
+docker build -t bettercap .
+
+cd ${HOME}
+
+# -------------------------------------------------------------------------------------------------
 # Install Kismet
 # -------------------------------------------------------------------------------------------------
 echo "${YELLOW}[~] Installing Kismet...${RESET}"
@@ -568,8 +594,8 @@ echo "${YELLOW}[~] Copying scripts to ${TARGET_DIR}...${RESET}"
 # Copy the script into the destination directory
 mkdir ${TARGET_DIR}
 
-cp ${SCRIPT_DIR}/run_airodump.sh ${TARGET_DIR}/run_airodump.sh
-chmod 755 ${TARGET_DIR}/run_airodump.sh
+cp ${SCRIPT_DIR}/*.sh ${TARGET_DIR}/
+chmod 755 ${TARGET_DIR}/*.sh
 
 cp ${CONFIG_DIR}/variables.sh ${TARGET_DIR}/variables.sh
 chmod 755 ${TARGET_DIR}/variables.sh
@@ -583,6 +609,25 @@ sed -i "s|VARIABLE_PATH|${VAR_FILE_PATH}|" ${TARGET_DIR}/run_airodump.sh
 # Adjust Permissions
 # -------------------------------------------------------------------------------------------------
 chown -R ${BASE_USER_NAME}:${BASE_USER_NAME} ${REPO_DIR}
+
+# -------------------------------------------------------------------------------------------------
+# Configure monit to monitor important services
+# -------------------------------------------------------------------------------------------------
+systemctl unmask monit.service
+systemctl enable monit.service
+
+echo "${BLUE}[~] Monitor dnsmasq.server ...${RESET}"
+cat > /etc/monit/conf.d/dnsmasq.conf << EOF
+check process dnsmasq with pidfile /var/run/dnsmasq.pid
+    start program = "/etc/init.d/dnsmasq start"
+    stop program  = "/etc/init.d/dnsmasq stop"
+    if not exist then restart
+    if failed port 53 type udp protocol dns then restart
+    if failed port 53 type tcp protocol dns then restart
+    if 5 restarts within 5 cycles then alert
+EOF
+
+chmod 644 /etc/monit/conf.d/*.conf
 
 # -------------------------------------------------------------------------------------------------
 # Cleanup and reboot

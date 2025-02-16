@@ -102,9 +102,9 @@ start(){
     # update the list of OUIs to display manufactures
     airodump-ng-oui-update
 
-    # stop networking processes that will interfer with airodump
-    airmon-ng check kill
-    sleep 5
+    # # stop networking processes that will interfer with airodump
+    # airmon-ng check kill
+    # sleep 5
 
     # put the ALFA cards into monitor mode
     echo "${YELLOW}[~] Start ${WLAN_INTERFACE_AC1200_2} and ${WLAN_INTERFACE_AC1200_1} in monitor mode ${RESET}"
