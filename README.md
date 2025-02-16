@@ -127,6 +127,8 @@ This project was initially designed to run airodump-ng for wireless recon.
    rfkill unblock <id of blocked device>
    ```
 
+4. [monit](https://mmonit.com/) is used to monitor the health of critical services.
+
 ## Enhancements
 
 1. 3D print case to hold the gear, [WiFi Traverl Case](https://makerworld.com/en/models/173957#profileId-195235)

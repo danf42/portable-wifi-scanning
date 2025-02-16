@@ -546,7 +546,7 @@ cd ${HOME}
 echo "${YELLOW}[~] Git Pull bettercap...${RESET}"
 cd ${TOOL_DIR}
 
-git clone https://github.com/danf42/bettercap.git
+git clone -b fix-issue-1170 https://github.com/danf42/bettercap.git
 
 cd ${TOOL_DIR}/bettercap
 docker build -t bettercap .
